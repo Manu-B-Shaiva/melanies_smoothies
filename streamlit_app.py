@@ -1,53 +1,44 @@
-# Import Python packages
+#Import python packages
 import streamlit as st
 from snowflake.snowpark.functions import col
-
 # Write directly to the app
-st.title("Customize Your Smoothie :cup_with_straw:")
+st.title(f":cup with straw: customize your Smoothies :cup with straw: {st.__version__}")
 st.write(
-    """
-    Choose the fruits you want in your custom Smoothie!
-    """
-)
+  """ Choose the fruits you want in your custom Smoothie!
+  """)
 
-# User input for name on order
-name_on_order = st.text_input("Name on Smoothie")
-st.write("The name on your smoothie will be: ", name_on_order)
+name_on_order = st.text_input('Name on Smoothie:')
+st.write('The Name of your Smoothie will be:', name_on_order )
 
-try:
-    # Establish connection to Snowflake (assuming st.connection is correctly defined)
-    cnx = st.connection("snowflake")
+cnx = st.connection("snowflake")
     session = cnx.session()
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+st.dataframe(data=my_dataframe, use_container_width=True)
 
-    # Retrieve fruit options from Snowflake
-    my_dataframe = session.table("smoothies.public.fruit_options").select(col("FRUIT_NAME"))
+ingredients_list = st.multiselect(
+    'choose up to 5 ingredients: '
+    , my_dataframe
+    , max_selections=5
+    )
+if ingredients_list:
 
-    # Multi-select for choosing ingredients
-    ingredients_list = st.multiselect('Choose up to 5 ingredients:', my_dataframe, max_selections=5)
 
-    # Process ingredients selection
-    if ingredients_list:
-        ingredients_string = ' '.join(ingredients_list)  # Join selected ingredients into a single string
-        for fruit_chosen in ingredients_list:
+    ingredients_string = ''
+
+    for fruit_chosen in ingredients_list:
+        ingredients_string += fruit_chosen + ' '
         
-          st.write(ingredients_string)     
+    st.write(ingredients_string)
 
-        # SQL statement to insert order into database (assuming proper handling of SQL injection risk)
-          my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_order)
-                            VALUES ('{}', '{}')""".format(ingredients_string, name_on_order)
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+            values ('""" + ingredients_string + """', '"""+name_on_order+ """')"""
 
-       #st.write(my_insert_stmt)
-       #st.stop()
+    #st.write(my_insert_stmt)
+    #st.stop()
     
-       # Button to submit order
-        time_to_insert = st.button('Submit Order')
-        if time_to_insert:
-            try:
-                # Execute SQL insert statement
-                session.sql(my_insert_stmt).collect()
-                st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
-            except Exception as e:
-                st.error(f"Failed to submit order: {str(e)}")
+    time_to_insert = st.button('Submit Order')
 
-except Exception as ex:
-    st.error(f"An error occurred: {str(ex)}")
+    if time_to_insert:
+        session.sql(my_insert_stmt).collect()
+        
+        st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
